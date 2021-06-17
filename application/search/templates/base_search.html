@@ -1,0 +1,102 @@
+<html>
+
+<head>
+    <title>Search structure</title>
+    <script type="text/javascript" language="javascript" src="{{ url_for('search_bp.static', filename='jsme/jsme.nocache.js') }}"></script>
+    <script type="text/javascript" language="javascript" src="{{ url_for('search_bp.static', filename='js/search.js') }}"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.2/css/bulma.min.css">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('search_bp.static', filename='style.css') }}">
+    <style>
+        em {
+            background-color: rgb(102, 255, 255);
+        }
+
+    </style>
+
+    <script>
+
+        //this function will be called after the JavaScriptApplet code has been loaded.
+        function jsmeOnLoad() {
+
+            jsmeApplet = new JSApplet.JSME("jsme_container", "600px", "440px", {
+                "options": "newlook,query,hydrogens",
+                "guicolor": "#bfbfbf",
+            });
+
+            jsmeApplet.setAfterStructureModifiedCallback(showEvent);
+
+            document.getElementById("log").value = "";
+        }
+
+        var patt = /\[([A-Za-z][a-z]?)H?\d*:\d+\]/g; //regexp pattern for numbered atom
+        function showEvent(event) {
+
+            let log = document.getElementById("log");
+            log.value = event.src.smiles();
+
+        }
+
+        function showValue(value) {
+            document.getElementById("mol_weight_range").innerText = value;
+        }
+
+    </script>
+</head>
+
+<body onload="onExtendTable()">
+    <section class="hero is-primary is-fullheight">
+
+        <div class="hero-head">
+            <nav class="navbar">
+                <div class="container">
+
+                    <div id="navbarMenuHeroA" class="navbar-menu">
+                        <div class="navbar-end">
+                            <a href="{{ url_for('main_bp.index') }}" class="navbar-item">
+                                Home
+                            </a>
+                            {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('main_bp.profile') }}" class="navbar-item">
+                                Profile
+                            </a>
+                            {% endif %}
+                            {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('search_bp.search') }}" class="navbar-item">
+                                Structure Search
+                            </a>
+                            {% endif %}
+                            {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('search_bp.search') }}" class="navbar-item">
+                                SQLite Workplace
+                            </a>
+                            {% endif %}
+                            {% if not current_user.is_authenticated %}
+                            <a href="{{ url_for('auth_bp.login') }}" class="navbar-item">
+                                Login
+                            </a>
+                            <a href="{{ url_for('auth_bp.signup') }}" class="navbar-item">
+                                Sign Up
+                            </a>
+                            {% endif %}
+                            {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('auth_bp.logout') }}" class="navbar-item">
+                                Logout
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+
+        <div class="hero-body">
+            <div class="container has-text-centered">
+               {% block content %}
+               {% endblock %}
+            </div>
+        </div>
+    </section>
+</body>
+</html>
+

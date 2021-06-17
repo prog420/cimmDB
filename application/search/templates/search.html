@@ -1,107 +1,56 @@
-<html>
+<!-- templates/search.html -->
 
-<head>
-    <title>Search structure</title>
-    <script type="text/javascript" language="javascript" src="{{ url_for('search_bp.static', filename='jsme/jsme.nocache.js') }}"></script>
-    <script type="text/javascript" language="javascript" src="{{ url_for('search_bp.static', filename='js/search.js') }}"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('search_bp.static', filename='style.css') }}">
-    <style>
-        em {
-            background-color: rgb(102, 255, 255);
-        }
+{% extends "base_search.html" %}
 
-    </style>
-
-    <script>
-
-        //this function will be called after the JavaScriptApplet code has been loaded.
-        function jsmeOnLoad() {
-
-            jsmeApplet = new JSApplet.JSME("jsme_container", "600px", "440px", {
-                "options": "newlook,query,hydrogens",
-                "guicolor": "#bfbfbf",
-            });
-
-            jsmeApplet.setAfterStructureModifiedCallback(showEvent);
-
-            document.getElementById("log").value = "";
-        }
-
-        var patt = /\[([A-Za-z][a-z]?)H?\d*:\d+\]/g; //regexp pattern for numbered atom
-        function showEvent(event) {
-
-            let log = document.getElementById("log");
-            log.value = event.src.smiles();
-
-        }
-
-        function showValue(value) {
-            document.getElementById("mol_weight_range").innerText = value;
-        }
-
-    </script>
-</head>
-
-<body onload="onExtendTable()">
-<H3>Web Project (in progress)</H3>
-
-<table>
-    <tr>
-        <td style="vertical-align: baseline;">
-        <table id="jsme_table">
-            <tr>
-                <td rowspan="13">
-                    <p>
-                        Draw a structure or enter SMILES:
-                    </p>
-                    <input type="text" id="log" placeholder="SMILES" style="margin-bottom: 1%; width: 600px">
-                    <p>
-                        Specify molecular weight:
-                    </p>
-                    <div>
-                        <span style="vertical-align: super;">0 Da</span>
-
-                        <input type="range" min="0" max="10000" step="10" id="mol_weight_range" value="0"
+{% block content %}
+<div class="columns">
+    <div class="column">
+        <div class="box">
+            <label class="label has-text-left">Draw a structure or enter SMILES:</label>
+            <div class="field is-grouped">
+                <p class="control is-expanded">
+                  <input class="input" id="log" type="text" placeholder="SMILES">
+                </p>
+                <p class="control">
+                  <a class="button is-info" onclick="onSearch(0)">
+                    Search
+                  </a>
+                </p>
+            </div>
+            <div class="has-text-left">
+            <span style="vertical-align: super;">0 Da</span>
+            <input type="range" min="0" max="10000" step="10" id="mol_weight_range" value="0"
                             oninput="document.getElementById('mol_weight_value').innerText=value" style="width: 300px;">
-
-                        <span style="vertical-align: super;">10 kDa</span></br>
-                        Minumum molecular weight:
-                        <span id='mol_weight_value'>0</span>
-                    </div>
-                    <input type='button' value="Search" onclick="onSearch(0)" style="margin-bottom: 2%; margin-top: 1%;">
-                    <div id="jsme_container"></div>
-                </td>
-            </tr>
-        </table>
-        </td>
-        <td style="vertical-align: top;">
-        <table id="main_table">
-            <tr>
-                <td colspan="7">
-                    <b>
-                        Structures was found:
-                        <span id='result'></span>
-                    </b>
-                </td>
-            </tr>
-            <tr>
-                <th>ID</th>
-                <th>ChEMBL ID</th>
-                <th>Molecular Weight</th>
-                <th>Molecular Species</th>
-                <th>Molecular Formula</th>
-            </tr>
-        </table>
-        <div style="text-align: center;">
-            <button id="prev_page" onclick="onSearch(-1)" disabled><<</button>
-            <span id='page'>1</span>
-            <button id="next_page" onclick="onSearch(1)" disabled>>></button>
+            <span style="vertical-align: super;">10 kDa</span></br>
+            Minumum molecular weight:
+            <span id='mol_weight_value'>0</span>
+            </div></br>
+            <div id="jsme_container"></div>
         </div>
-        </td>
-    </tr>
-</table>
-
-</body>
-</html>
+    </div>
+    <div class="column">
+        <div class="box">
+            <table id="main_table" class="table is-striped">
+                <tr>
+                    <th colspan="7">
+                        <label class="label">Structures was found: <span id='result'></span></label>
+                    </th>
+                </tr>
+                <tr>
+                    <th>ID</th>
+                    <th>ChEMBL ID</th>
+                    <th>Molecular Weight</th>
+                    <th>Molecular Species</th>
+                    <th>Molecular Formula</th>
+                </tr>
+            </table>
+            <div style="text-align: center;">
+                <button id="prev_page" onclick="onSearch(-1)" disabled><<</button>
+                <span id='page'>1</span>
+                <button id="next_page" onclick="onSearch(1)" disabled>>></button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
