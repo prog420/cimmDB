@@ -1,0 +1,46 @@
+.hero {
+    background-image: url('/static/img/back.jpg'); 
+    background-size: inherit;
+}
+
+.hero.is-primary {
+    background-color: transparent;
+}
+
+.hero.is-primary a.navbar-item:hover {
+    background-color:transparent;
+    color: rgb(211, 187, 134);
+    font-weight: 600;
+}
+
+.table {
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 0.5rem;
+}
+
+.table td {
+    width: 120px;
+    vertical-align: inherit;
+}
+
+#draggable {
+    width: 640px;
+    height: 500px;
+}
+
+#sim_row {
+    display: none;
+}
+
+#sim_slider {
+    width: 280px;
+}
+
+#sim_output {
+    margin-left: 1%;
+}
+
+#conditions_row {
+    display: none;
+}

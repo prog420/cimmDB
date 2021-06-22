@@ -6,48 +6,39 @@
 <div class="columns">
     <div class="column">
         <div class="box">
-            <label class="label has-text-left">Draw a structure or enter SMILES:</label>
-            <div class="field is-grouped">
-                <p class="control is-expanded">
-                  <input class="input" id="log" type="text" placeholder="SMILES">
-                </p>
-                <p class="control">
-                  <a class="button is-info" onclick="onSearch(0)">
-                    Search
-                  </a>
-                </p>
-            </div>
-            <div class="has-text-left">
-            <span style="vertical-align: super;">0 Da</span>
-            <input type="range" min="0" max="10000" step="10" id="mol_weight_range" value="0"
-                            oninput="document.getElementById('mol_weight_value').innerText=value" style="width: 300px;">
-            <span style="vertical-align: super;">10 kDa</span></br>
-            Minumum molecular weight:
-            <span id='mol_weight_value'>0</span>
-            </div></br>
-            <div id="jsme_container"></div>
-        </div>
-    </div>
-    <div class="column">
-        <div class="box">
-            <table id="main_table" class="table is-striped">
-                <tr>
-                    <th colspan="7">
-                        <label class="label">Structures was found: <span id='result'></span></label>
-                    </th>
-                </tr>
-                <tr>
-                    <th>ID</th>
-                    <th>ChEMBL ID</th>
-                    <th>Molecular Weight</th>
-                    <th>Molecular Species</th>
-                    <th>Molecular Formula</th>
-                </tr>
-            </table>
-            <div style="text-align: center;">
-                <button id="prev_page" onclick="onSearch(-1)" disabled><<</button>
-                <span id='page'>1</span>
-                <button id="next_page" onclick="onSearch(1)" disabled>>></button>
+            <div style="height:600px; overflow:auto;">
+                <table id="main_table" class="table is-striped">
+                    <tr>
+                        <th colspan="7">
+                            <label class="label">Structures was found: {{ amount }}</label>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>ID</th>
+                        <th>ChEMBL ID</th>
+                        <th>Molecular Weight</th>
+                        <th>HBA Lipinski</th>
+                        <th>HBD Lipinski</th>
+                        <th>Molecular Species</th>
+                        <th>Molecular Formula</th>
+                    </tr>
+                    {% for mol in molecules %}
+                    <tr>
+                        <td>{{ mol['id'] }}</td>
+                        <td>{{ mol['chembl_id'] }}</td>
+                        <td>{{ mol['mol_weight'] }}</td>
+                        <td>{{ mol['hba_lipinski'] }}</td>
+                        <td>{{ mol['hbd_lipinski'] }}</td>
+                        <td>{{ mol['mol_species'] }}</td>
+                        <td>{{ mol['mol_formula'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                <div style="text-align: center;">
+                    <button id="prev_page" onclick="onSearch(-1)" disabled><<</button>
+                    <span id='page'>1</span>
+                    <button id="next_page" onclick="onSearch(1)" disabled>>></button>
+                </div>
             </div>
         </div>
     </div>

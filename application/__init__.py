@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_restful import Api
 from flask_login import LoginManager
 
 # Globally accessible libraries
@@ -25,7 +26,7 @@ def init_app():
         # from . import routes
         from application.login import auth_bp
         from application.main import main_bp
-        from application.search import search_bp
+        from application.search import search_bp, Search
         from application.models import User
 
         @login_manager.user_loader
@@ -34,10 +35,14 @@ def init_app():
             # use it in the query for the user
             return User.query.get(int(user_id))
 
+        api = Api(search_bp)
+        api.add_resource(Search, "/search", endpoint='search')
+
         # Register Blueprints
         app.register_blueprint(main_bp)
         app.register_blueprint(auth_bp)
         app.register_blueprint(search_bp)
+
 
         return app
 

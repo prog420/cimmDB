@@ -5,6 +5,7 @@ from flask import current_app as app
 from application import db
 from application.models import User
 
+
 # Blueprint Configuration
 auth_bp = Blueprint(
     'auth_bp', __name__,
@@ -55,11 +56,13 @@ def signup_post():
     password = request.form.get('password')
 
     # If this returns a user, then the email already exists in database
-    user = User.query.filter_by(email=email).first()
-
-    if user: # If a user is found, we want to redirect back to signup page so user can try again
+    # If a user is found, we want to redirect back to signup page so user can try again
+    if User.query.filter_by(email=email).first():
         flash('Email address already exists.')
-        return redirect(url_for('auth_bp.signup.html'))
+        return redirect(url_for('auth_bp.signup'))
+    elif User.query.filter_by(name=name).first():
+        flash('Name of user already exists.')
+        return redirect(url_for('auth_bp.signup'))
 
     # Create new user with the form data. Hash the password so plaintext version won't be saved.
     new_user = User(email=email, name=name, password=generate_password_hash(password, method='sha256'))
@@ -68,7 +71,7 @@ def signup_post():
     db.session.add(new_user)
     db.session.commit()
 
-    return redirect(url_for('auth_bp.login.html'))
+    return redirect(url_for('auth_bp.login'))
 
 
 @auth_bp.route('/logout')
