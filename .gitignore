@@ -3,3 +3,4 @@
 .idea
 
 chembl_db.sqlite
+db.sqlite

@@ -22,4 +22,7 @@ class Substance(db.Model):
     mol_species = db.Column(db.String(40))
     mol_formula = db.Column(db.String(200))
     smiles = db.Column(db.String(2000))
+    hba_lipinski = db.Column(db.Integer)
+    hbd_lipinski = db.Column(db.Integer)
+    fingerprint = db.Column(db.String(2000))
 
