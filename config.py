@@ -17,6 +17,6 @@ class Config:
 
     # Flask-SQLAlchemy
     # SQLALCHEMY_DATABASE_URI = "postgresql://postgres:password@localhost/test"
-    SQLALCHEMY_DATABASE_URI = "sqlite:///db.sqlite"
+    SQLALCHEMY_DATABASE_URI = "sqlite:///reduced_db.sqlite"
     SQLALCHEMY_ECHO = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
