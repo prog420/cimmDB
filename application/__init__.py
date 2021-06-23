@@ -27,6 +27,7 @@ def init_app():
         from application.login import auth_bp
         from application.main import main_bp
         from application.search import search_bp, Search
+        from application.add import add_bp
         from application.models import User
 
         @login_manager.user_loader
@@ -42,6 +43,7 @@ def init_app():
         app.register_blueprint(main_bp)
         app.register_blueprint(auth_bp)
         app.register_blueprint(search_bp)
+        app.register_blueprint(add_bp)
 
 
         return app
