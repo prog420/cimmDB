@@ -1,47 +1,64 @@
 <!-- templates/search.html -->
 
-{% extends "base_search.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 <div class="columns">
-    <div class="column">
+    <div class="column"></div>
+    <div class="column is-two-thirds">
         <div class="box">
-            <div style="height:600px; overflow:auto;">
-                <table id="main_table" class="table is-striped">
-                    <tr>
-                        <th colspan="7">
-                            <label class="label">Structures was found: {{ amount }}</label>
-                        </th>
-                    </tr>
-                    <tr>
-                        <th>ID</th>
-                        <th>ChEMBL ID</th>
-                        <th>Molecular Weight</th>
-                        <th>HBA Lipinski</th>
-                        <th>HBD Lipinski</th>
-                        <th>Molecular Species</th>
-                        <th>Molecular Formula</th>
-                    </tr>
-                    {% for mol in molecules %}
-                    <tr>
-                        <td>{{ mol['id'] }}</td>
-                        <td>{{ mol['chembl_id'] }}</td>
-                        <td>{{ mol['mol_weight'] }}</td>
-                        <td>{{ mol['hba_lipinski'] }}</td>
-                        <td>{{ mol['hbd_lipinski'] }}</td>
-                        <td>{{ mol['mol_species'] }}</td>
-                        <td>{{ mol['mol_formula'] }}</td>
-                    </tr>
-                    {% endfor %}
-                </table>
-                <div style="text-align: center;">
-                    <button id="prev_page" onclick="onSearch(-1)" disabled><<</button>
-                    <span id='page'>1</span>
-                    <button id="next_page" onclick="onSearch(1)" disabled>>></button>
+            <table id="main_table" class="table is-striped">
+                <tr>
+                    <th>
+                        <label class="label">Structures was found: {{ amount }}</label>
+                    </th>
+                </tr>
+                <tr>
+                    <th>
+                        <label class="label">Response Time: {{ response_time }} seconds</label>
+                    </th>
+                </tr>
+            </table>
+        </div>
+        {% if objects %}
+            {% for object in objects %}
+            <div class="box">
+                <div class="tile is-ancestor">
+                    <div class="tile is-parent">
+                        <article class="tile is-child">
+                            <div class="content" style="margin-bottom: 0%;">
+                                <figure class="image">
+                                    <img src="data:image/png;base64,{{ object['png'] }}">
+                                </figure>
+                            </div>
+                            <div class="table-container" id="parameter_table">
+                                <table class="table">
+                                    {% for key in objects[0].keys() %}
+                                        {% if key != 'fingerprint' and key != 'png' and object[key] != 'None' %}
+                                        <tr>
+                                            <td id="parameter_description">
+                                                {{ key }}
+                                            </td>
+                                            <td>
+                                                {% if object[key] is string or object[key] is float or object[key] is integer %}
+                                                    {{ object[key] }}
+                                                {% else %}
+                                                    {{ ", ".join(object[key]) }}
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                    {% endfor %}
+                                </table>
+                              </div>
+                        </article>
+                    </div>
                 </div>
             </div>
-        </div>
+            {% endfor %}
+        {% endif %}
     </div>
+    <div class="column"></div>
 </div>
 {% endblock %}
 

@@ -9,7 +9,7 @@ main_bp = Blueprint(
     static_url_path='/main/static'
 )
 
-conditions = {'Acid hydrolysis',
+conditions = ('Acid hydrolysis',
               'Autoclave',
               'Darkness',
               'Electrolysis',
@@ -25,7 +25,7 @@ conditions = {'Acid hydrolysis',
               'cooling',
               'infrared irradiation',
               'microwave irradiation',
-              'sonication'}
+              'sonication')
 
 
 @main_bp.route("/", methods=['GET'])

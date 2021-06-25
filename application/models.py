@@ -15,6 +15,20 @@ class Substance(db.Model):
     __tablename__ = "substances"
 
     id = db.Column(db.Integer, primary_key=True)
+    binary_data = db.Column(db.BLOB)
+
+
+class Reactions(db.Model):
+    __tablename__ = "reactions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    binary_data = db.Column(db.BLOB)
+
+"""
+class Substance(db.Model):
+    __tablename__ = "substances"
+
+    id = db.Column(db.Integer, primary_key=True)
     chembl_id = db.Column(db.String(20), unique=True)
     name = db.Column(db.String(200))
     synonyms = db.Column(db.String(400))
@@ -25,4 +39,5 @@ class Substance(db.Model):
     hba_lipinski = db.Column(db.Integer)
     hbd_lipinski = db.Column(db.Integer)
     fingerprint = db.Column(db.String(2000))
+"""
 

@@ -1,12 +1,16 @@
 import time
+import base64
+import pickle
+import sqlite3
 from math import ceil
 from flask import Blueprint, render_template, request, make_response
 from flask_restful import Resource
 from rdkit import Chem
 from rdkit import DataStructs
 from rdkit.Chem.Fingerprints import FingerprintMols
+from rdkit.Chem import rdChemReactions, AllChem, Draw
 from application import db
-from application.models import Substance
+from application.models import Substance, Reactions
 
 
 # Blueprint Configuration
@@ -17,19 +21,31 @@ search_bp = Blueprint(
     static_url_path='/search/static'
 )
 
+# Response data
+data = []
+amount = 0
+response_time = 0
+query_type = None
+
 
 class Search(Resource):
-    data = []
+    objects = []
     similarity = 0.0
+    condition = None
 
-    def get(self):
-        pass
+    def get(self, page_num=1):
+        print('GET request')
+        page_data = self.get_png(page_num)
+        headers = {'Content-Type': 'text/html'}
+        return make_response(render_template('search.html',
+                                             objects=page_data,
+                                             amount=amount,
+                                             response_time=response_time), 200, headers)
 
     def put(self):
-        self.data.append(request.form['data'])
-        return self.data
+        pass
 
-    def post(self):
+    def post(self, page_num=1):
         """
         Function to handle user POST query
         fingerprints - array of ExplicitBitVectors
@@ -41,44 +57,131 @@ class Search(Resource):
             3. Calculating similarity for all pairs "query fingerprint - molecule fingerprint"
             4. Forming array of enumerated values to get needed molecules
             4. Filtering array with needed accuracy
+            5. Sorting array (highest similarity -> lowest similarity)
             5. Obtaining molecules with required accuracy
         """
-        user_query = request.form.get('smiles')
-        query_type = request.form.get('rsvp')
-        subquery_type = request.form.get('rsvp_dropdown')
-        if subquery_type == 'Similarity':
-            self.similarity = int(request.form.get('similarity_value'))/100
-        query_mol = Chem.MolFromSmiles(user_query)
-        query_fp = FingerprintMols.FingerprintMol(query_mol).ToBitString()
-        query_fp = query_fp + '0'*(2048 - len(query_fp))
-        query_fp = DataStructs.cDataStructs.CreateFromBitString(query_fp)
-        query = Substance.query.all()
-        if user_query == "":
-            self.data = query
+        global data, amount, response_time, query_type
+        user_query = request.form.get('smiles')  # SMILES from textfield
+        query_type = request.form.get('rsvp')  # ChEMBL or reactions database
+        subquery_mols = request.form.get('mols_dropdown')  # Type of search
+        subquery_reactions = request.form.get('reactions_dropdown')  # Type of search
+        self.condition = request.form.get('condition_dropdown')  # Condition of reaction
+        print(request.form)
 
+        start_time = time.time()  # Measuring response time
+
+        if query_type == "reactions":
+            if user_query:
+                query_react = rdChemReactions.ReactionFromSmarts(user_query)
+                query_fp = rdChemReactions.CreateStructuralFingerprintForReaction(query_react).ToBitString()
+            else:
+                query_fp = ""
+
+            if subquery_reactions == "Conditions":
+                print('Checking conditions')
+                data = self.get_objects('reactions', "", filter_conditions=True)
+            else:
+                print('Generating fingerprints')
+                data = self.get_objects('reactions', query_fp, 4096)
+
+        elif query_type == "chembl":
+            if subquery_mols == 'Similarity':
+                self.similarity = int(request.form.get('similarity_value'))/100
+            if user_query:
+                query_mol = Chem.MolFromSmiles(user_query)
+                query_fp = FingerprintMols.FingerprintMol(query_mol).ToBitString()
+            else:
+                query_fp = ""
+            data = self.get_objects('substances', query_fp, 2048)
+
+        if data:
+            amount = len(data)
+            page_data = self.get_png(page_num)
         else:
-            start_time = time.time()
-            fingerprints = [DataStructs.cDataStructs.CreateFromBitString(mol.fingerprint) for mol in query]
-            similarities = list(enumerate(DataStructs.BulkTanimotoSimilarity(query_fp, fingerprints)))
-            filtered_similarities = list(filter(self.check_similarity, similarities))
-            query = [query[indice[0]] for indice in filtered_similarities]
-            self.data = similarities
-            print("--- %s seconds ---" % (time.time() - start_time))
-        if query:
-            molecules = [{'id': mol.id,
-                          'chembl_id': mol.chembl_id,
-                          'mol_weight': mol.mol_weight,
-                          'hba_lipinski': mol.hba_lipinski,
-                          'hbd_lipinski': mol.hbd_lipinski,
-                          'mol_species': mol.mol_species,
-                          'mol_formula': mol.mol_formula}
-                         for mol in query[0:10]]
-            amount = len(query)
-        else:
-            molecules = [{}]
             amount = 0
+        response_time = round(time.time() - start_time, 4)
+        print("--- %s seconds ---" % response_time)
         headers = {'Content-Type': 'text/html'}
-        return make_response(render_template('search.html', molecules=molecules, amount=amount), 200, headers)
+        return make_response(render_template('search.html',
+                                             objects=page_data,
+                                             amount=amount,
+                                             response_time=response_time), 200, headers)
+
+    def get_png(self, page_num):
+        global data, query_type
+        chunk = data[(page_num-1)*10:page_num*10]
+        print("Query type:", query_type)
+        if query_type == "reactions":
+            for obj in chunk:
+                rxn = AllChem.ReactionFromSmarts(obj['Smiles'])
+                d2d = Draw.MolDraw2DCairo(800, 250)
+                d2d.DrawReaction(rxn)
+                png_bytes = d2d.GetDrawingText()
+                png_base64 = base64.b64encode(png_bytes)
+                png_base64 = png_base64.decode("utf-8")
+                obj['png'] = png_base64
+        elif query_type == "chembl":
+            for obj in chunk:
+                rxn = Chem.MolFromSmiles(obj['Smiles'])
+                d2d = Draw.MolDraw2DCairo(800, 150)
+                d2d.DrawMolecule(rxn)
+                png_bytes = d2d.GetDrawingText()
+                png_base64 = base64.b64encode(png_bytes)
+                png_base64 = png_base64.decode("utf-8")
+                obj['png'] = png_base64
+        return chunk
+
+    def get_objects(self, table, query_fp, bit_len=0, filter_conditions=False):
+        """
+        Handle similarity searching
+        :param table:string
+        :param query_fp: bitstring
+        :param bit_len: integer
+        :return: List[Dict, Dict, ...]
+        """
+        connection = sqlite3.connect('db.sqlite')
+        c = connection.cursor()
+        c.execute(f"SELECT * from {table}")
+        objects = c.fetchall()
+        if filter_conditions:
+            objects = [pickle.loads(obj[1]) for obj in objects]
+            filtered_objects = list(filter(self.check_condition, objects))
+        else:
+            if query_fp:
+                query_fp = query_fp + '0' * (bit_len - len(query_fp))
+                query_fp = DataStructs.cDataStructs.CreateFromBitString(query_fp)
+
+                objects = [(obj[0], pickle.loads(obj[1])) for obj in objects]
+                fingerprints = [DataStructs.cDataStructs.CreateFromBitString(obj[1]['fingerprint']) for obj in objects]
+                similarities = list(enumerate(DataStructs.BulkTanimotoSimilarity(query_fp, fingerprints)))
+                filtered_similarities = list(filter(self.check_similarity, similarities))
+                filtered_similarities = sorted(filtered_similarities, key=lambda values: values[1], reverse=True)
+                filtered_objects = [objects[indice[0]][1] for indice in filtered_similarities]
+            else:
+                filtered_objects = [pickle.loads(obj[1]) for obj in objects]
+        return filtered_objects
+
+    def check_condition(self, obj):
+        """
+        Check conditions of reactions
+        :param obj: Dict
+        :return: Bool
+        """
+        try:
+            if isinstance(obj['Conditions'], str):
+                if obj['Conditions'] == self.condition:
+                    return True
+                else:
+                    return False
+            elif isinstance(obj['Conditions'], list):
+                if self.condition in obj['Conditions']:
+                    return True
+                else:
+                    return False
+            else:
+                return False
+        except KeyError:
+            return False
 
     def check_similarity(self, sim_value):
         """
@@ -91,43 +194,6 @@ class Search(Resource):
             return True
         else:
             return False
-
-
-def get_description(mol, orm=False):
-    if orm:
-        data = {'id': mol.id,
-                'chembl_id': mol.chembl_id,
-                'name': mol.name,
-                'mol_weight': mol.mol_weight,
-                'mol_species': mol.mol_species,
-                'mol_formula': mol.mol_formula,
-                # 'depiction': f"data:image/svg+xml;base64,{svg_base64}",
-                }
-    else:
-        data = {'id': mol['id'],
-                'chembl_id': mol['chembl_id'],
-                'name': mol['name'],
-                'mol_weight': mol['mol_weight'],
-                'mol_species': mol['mol_species'],
-                'mol_formula': mol['mol_formula'],
-                # 'depiction': f"data:image/svg+xml;base64,{svg_base64}",
-                }
-    return data
-
-
-def get_paged_results(smiles_query, mol_weight, page):
-    rows_on_page = 20
-
-    query = f"SELECT * from substances WHERE instr(smiles, '{smiles_query}') > 0 AND mol_weight > {mol_weight}"
-    count_query = f'SELECT COUNT(*) FROM ({query})'
-    result = db.engine.execute(query)
-    total_results = db.engine.execute(count_query).fetchall()[0][0]
-    num_of_pages = ceil(total_results / rows_on_page)
-    for i in range(page):
-        paged_res = result.fetchmany(20)
-    paged_res = list(map(dict, paged_res))
-    paged_res = [get_description(mol) for mol in paged_res]
-    return paged_res, total_results, num_of_pages
 
 
 """

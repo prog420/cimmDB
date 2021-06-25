@@ -36,8 +36,14 @@ def init_app():
             # use it in the query for the user
             return User.query.get(int(user_id))
 
+        search_routes = [
+            "/search",
+            "/search/<int:page_num>",
+        ]
+
         api = Api(search_bp)
-        api.add_resource(Search, "/search", endpoint='search')
+        # api.add_resource(Search, "/search/<int:page_num>", endpoint='search')
+        api.add_resource(Search, "/search/<int:page_num>", *search_routes)
 
         # Register Blueprints
         app.register_blueprint(main_bp)
