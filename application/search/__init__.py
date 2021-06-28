@@ -2,8 +2,9 @@ import time
 import base64
 import pickle
 import sqlite3
+import redis
 from math import ceil
-from flask import Blueprint, render_template, request, make_response
+from flask import Blueprint, render_template, request, make_response, session
 from flask_restful import Resource
 from rdkit import Chem
 from rdkit import DataStructs
@@ -21,26 +22,22 @@ search_bp = Blueprint(
     static_url_path='/search/static'
 )
 
-# Response data
-data = []
-amount = 0
-response_time = 0
-query_type = None
-
 
 class Search(Resource):
     objects = []
+    data = []
+    page_data = []
     similarity = 0.0
     condition = None
 
     def get(self, page_num=1):
         print('GET request')
-        page_data = self.get_png(page_num)
+        self.page_data = self.get_paged_data(page_num)
         headers = {'Content-Type': 'text/html'}
         return make_response(render_template('search.html',
-                                             objects=page_data,
-                                             amount=amount,
-                                             response_time=response_time), 200, headers)
+                                             objects=self.page_data,
+                                             amount=session.get('amount'),
+                                             response_time=session.get('response_time')), 200, headers)
 
     def put(self):
         pass
@@ -60,9 +57,10 @@ class Search(Resource):
             5. Sorting array (highest similarity -> lowest similarity)
             5. Obtaining molecules with required accuracy
         """
-        global data, amount, response_time, query_type
         user_query = request.form.get('smiles')  # SMILES from textfield
         query_type = request.form.get('rsvp')  # ChEMBL or reactions database
+        session['query_type'] = query_type
+
         subquery_mols = request.form.get('mols_dropdown')  # Type of search
         subquery_reactions = request.form.get('reactions_dropdown')  # Type of search
         self.condition = request.form.get('condition_dropdown')  # Condition of reaction
@@ -79,38 +77,55 @@ class Search(Resource):
 
             if subquery_reactions == "Conditions":
                 print('Checking conditions')
-                data = self.get_objects('reactions', "", filter_conditions=True)
+                self.data = self.get_objects('reactions', "", filter_conditions=True)
             else:
                 print('Generating fingerprints')
-                data = self.get_objects('reactions', query_fp, 4096)
+                self.data = self.get_objects('reactions', query_fp, 4096)
 
         elif query_type == "chembl":
             if subquery_mols == 'Similarity':
                 self.similarity = int(request.form.get('similarity_value'))/100
+            elif subquery_mols == 'Full':
+                self.similarity = 1.0
             if user_query:
                 query_mol = Chem.MolFromSmiles(user_query)
                 query_fp = FingerprintMols.FingerprintMol(query_mol).ToBitString()
             else:
                 query_fp = ""
-            data = self.get_objects('substances', query_fp, 2048)
+            self.data = self.get_objects('substances', query_fp, 2048)
 
-        if data:
-            amount = len(data)
-            page_data = self.get_png(page_num)
+        if self.data:
+            objects = pickle.dumps([obj['id'] for obj in self.data])
+            # r.set('indices', objects)
+            # print(r.get('indices'))
+            session['indices'] = objects
+            session['amount'] = len(self.data)
+            self.page_data = self.get_paged_data(page_num)
         else:
-            amount = 0
-        response_time = round(time.time() - start_time, 4)
-        print("--- %s seconds ---" % response_time)
+            session['amount'] = 0
+        session['response_time'] = round(time.time() - start_time, 4)
+        print("--- %s seconds ---" % session.get('response_time'))
         headers = {'Content-Type': 'text/html'}
         return make_response(render_template('search.html',
-                                             objects=page_data,
-                                             amount=amount,
-                                             response_time=response_time), 200, headers)
+                                             objects=self.page_data,
+                                             amount=session.get('amount'),
+                                             response_time=session.get('response_time')), 200, headers)
 
-    def get_png(self, page_num):
-        global data, query_type
-        chunk = data[(page_num-1)*10:page_num*10]
-        print("Query type:", query_type)
+    def get_paged_data(self, page_num):
+        tables = {'chembl': 'substances', 'reactions': 'reactions'}
+        indices = pickle.loads(session.get('indices'))
+        page_indices = tuple(indices[(page_num - 1) * 10:page_num * 10])
+
+        query_type = session.get('query_type')
+
+        connection = sqlite3.connect('db.sqlite')
+        c = connection.cursor()
+        if len(page_indices) == 1:
+            c.execute(f"SELECT * from {tables[query_type]} WHERE id = {page_indices[0]}")
+        else:
+            c.execute(f"SELECT * from {tables[query_type]} WHERE id IN {page_indices}")
+        chunk = c.fetchall()
+        chunk = [pickle.loads(obj[1]) for obj in chunk]
         if query_type == "reactions":
             for obj in chunk:
                 rxn = AllChem.ReactionFromSmarts(obj['Smiles'])
@@ -137,28 +152,32 @@ class Search(Resource):
         :param table:string
         :param query_fp: bitstring
         :param bit_len: integer
+        :param filter_conditions: bool
         :return: List[Dict, Dict, ...]
         """
         connection = sqlite3.connect('db.sqlite')
         c = connection.cursor()
         c.execute(f"SELECT * from {table}")
         objects = c.fetchall()
+        objects = [(obj[0], pickle.loads(obj[1])) for obj in objects]
+        for obj in objects:
+            obj[1]['id'] = obj[0]
+        objects = [obj[1] for obj in objects]
+
         if filter_conditions:
-            objects = [pickle.loads(obj[1]) for obj in objects]
             filtered_objects = list(filter(self.check_condition, objects))
         else:
             if query_fp:
                 query_fp = query_fp + '0' * (bit_len - len(query_fp))
                 query_fp = DataStructs.cDataStructs.CreateFromBitString(query_fp)
 
-                objects = [(obj[0], pickle.loads(obj[1])) for obj in objects]
-                fingerprints = [DataStructs.cDataStructs.CreateFromBitString(obj[1]['fingerprint']) for obj in objects]
+                fingerprints = [DataStructs.cDataStructs.CreateFromBitString(obj['fingerprint']) for obj in objects]
                 similarities = list(enumerate(DataStructs.BulkTanimotoSimilarity(query_fp, fingerprints)))
                 filtered_similarities = list(filter(self.check_similarity, similarities))
                 filtered_similarities = sorted(filtered_similarities, key=lambda values: values[1], reverse=True)
-                filtered_objects = [objects[indice[0]][1] for indice in filtered_similarities]
+                filtered_objects = [objects[indice['id']] for indice in filtered_similarities]
             else:
-                filtered_objects = [pickle.loads(obj[1]) for obj in objects]
+                filtered_objects = objects
         return filtered_objects
 
     def check_condition(self, obj):

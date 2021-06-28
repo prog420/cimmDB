@@ -1,10 +1,14 @@
+import redis
+from datetime import timedelta
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Api
 from flask_login import LoginManager
+from flask_session import Session
 
 # Globally accessible libraries
 db = SQLAlchemy()
+sess = Session()
 
 login_manager = LoginManager()
 login_manager.login_view = 'auth_bp.login.html'
@@ -17,9 +21,11 @@ def init_app():
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object('config.Config')
 
-    db.init_app(app)
+    app.permanent_session_lifetime = timedelta(minutes=5)
 
+    db.init_app(app)
     login_manager.init_app(app)
+    sess.init_app(app)
 
     with app.app_context():
         # Import parts of app
@@ -50,7 +56,6 @@ def init_app():
         app.register_blueprint(auth_bp)
         app.register_blueprint(search_bp)
         app.register_blueprint(add_bp)
-
 
         return app
 

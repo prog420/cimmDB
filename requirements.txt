@@ -1,5 +1,7 @@
 flask
 flask-restful
 flask-sqlalchemy
+flask-session
 flask-login
-rdkit
+sqlalchemy
+redis
