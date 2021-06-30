@@ -24,6 +24,7 @@ class Reactions(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     binary_data = db.Column(db.BLOB)
 
+
 """
 class Substance(db.Model):
     __tablename__ = "substances"

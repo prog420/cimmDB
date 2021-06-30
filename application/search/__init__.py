@@ -2,16 +2,15 @@ import time
 import base64
 import pickle
 import sqlite3
-import redis
+from os import mkdir
 from math import ceil
-from flask import Blueprint, render_template, request, make_response, session
+from flask import Blueprint, render_template, request, make_response, session, current_app
 from flask_restful import Resource
 from rdkit import Chem
 from rdkit import DataStructs
 from rdkit.Chem.Fingerprints import FingerprintMols
 from rdkit.Chem import rdChemReactions, AllChem, Draw
 from application import db
-from application.models import Substance, Reactions
 
 
 # Blueprint Configuration
@@ -24,11 +23,17 @@ search_bp = Blueprint(
 
 
 class Search(Resource):
-    objects = []
-    data = []
-    page_data = []
-    similarity = 0.0
-    condition = None
+    def __init__(self):
+        self.data = []
+        self.page_data = []
+        self.similarity = 0.0
+
+        self.user_query = None  # SMILES Data
+        self.user_mol = None  # RDKit Molecule object
+
+        self.subquery_mols = None  # Query to ChEMBL data (ChEMBL => Structure, Substructure or Similarity)
+        self.subquery_reactions = None  # Query to reactions data (Reactions => Reaction, React., Prod. or Conditions)
+        self.condition = None  # Conditions of the reaction
 
     def get(self, page_num=1):
         print('GET request')
@@ -57,42 +62,44 @@ class Search(Resource):
             5. Sorting array (highest similarity -> lowest similarity)
             5. Obtaining molecules with required accuracy
         """
-        user_query = request.form.get('smiles')  # SMILES from textfield
-        query_type = request.form.get('rsvp')  # ChEMBL or reactions database
+        self.user_query = request.form.get('smiles')  # SMILES from textfield
+
+        query_type = request.form.get('database')  # User choice - ChEMBL or reactions database
         session['query_type'] = query_type
 
-        subquery_mols = request.form.get('mols_dropdown')  # Type of search
-        subquery_reactions = request.form.get('reactions_dropdown')  # Type of search
+        self.subquery_mols = request.form.get('mols_dropdown')  # Type of ChEMBL search
+        self.subquery_reactions = request.form.get('reactions_dropdown')  # Type of reactions search
         self.condition = request.form.get('condition_dropdown')  # Condition of reaction
         print(request.form)
 
         start_time = time.time()  # Measuring response time
 
         if query_type == "reactions":
-            if user_query:
-                query_react = rdChemReactions.ReactionFromSmarts(user_query)
-                query_fp = rdChemReactions.CreateStructuralFingerprintForReaction(query_react).ToBitString()
+            if self.user_query:
+                if self.subquery_reactions == 'Reactants' or self.subquery_reactions == 'Products':
+                    query_fp = ""
+                else:
+                    query_react = rdChemReactions.ReactionFromSmarts(self.user_query)
+                    query_fp = rdChemReactions.CreateStructuralFingerprintForReaction(query_react).ToBitString()
+                    if self.subquery_reactions == 'Reaction':
+                        self.similarity = int(request.form.get('similarity_value')) / 100
             else:
                 query_fp = ""
 
-            if subquery_reactions == "Conditions":
-                print('Checking conditions')
-                self.data = self.get_objects('reactions', "", filter_conditions=True)
-            else:
-                print('Generating fingerprints')
-                self.data = self.get_objects('reactions', query_fp, 4096)
+            # bit_len - Length of bit string for required fingerprints
+            self.data = self.get_objects('reactions', query_fp=query_fp, bit_len=4096)
 
         elif query_type == "chembl":
-            if subquery_mols == 'Similarity':
-                self.similarity = int(request.form.get('similarity_value'))/100
-            elif subquery_mols == 'Full':
-                self.similarity = 1.0
-            if user_query:
-                query_mol = Chem.MolFromSmiles(user_query)
+            if self.user_query:
+                query_mol = Chem.MolFromSmiles(self.user_query)
                 query_fp = FingerprintMols.FingerprintMol(query_mol).ToBitString()
             else:
                 query_fp = ""
-            self.data = self.get_objects('substances', query_fp, 2048)
+            if self.subquery_mols == 'Similarity':
+                self.similarity = int(request.form.get('similarity_value'))/100
+            elif self.subquery_mols == 'Full':
+                self.similarity = 1.0
+            self.data = self.get_objects('substances', query_fp=query_fp, bit_len=2048)
 
         if self.data:
             objects = pickle.dumps([obj['id'] for obj in self.data])
@@ -118,17 +125,15 @@ class Search(Resource):
 
         query_type = session.get('query_type')
 
-        connection = sqlite3.connect('db.sqlite')
-        c = connection.cursor()
         if len(page_indices) == 1:
-            c.execute(f"SELECT * from {tables[query_type]} WHERE id = {page_indices[0]}")
+            engine_query = db.engine.execute(f"SELECT * from {tables[query_type]} WHERE id = {page_indices[0]}")
         else:
-            c.execute(f"SELECT * from {tables[query_type]} WHERE id IN {page_indices}")
-        chunk = c.fetchall()
+            engine_query = db.engine.execute(f"SELECT * from {tables[query_type]} WHERE id IN {page_indices}")
+        chunk = engine_query.fetchall()
         chunk = [pickle.loads(obj[1]) for obj in chunk]
         if query_type == "reactions":
             for obj in chunk:
-                rxn = AllChem.ReactionFromSmarts(obj['Smiles'])
+                rxn = AllChem.ReactionFromSmarts(obj['Smiles'], useSmiles=True)
                 d2d = Draw.MolDraw2DCairo(800, 250)
                 d2d.DrawReaction(rxn)
                 png_bytes = d2d.GetDrawingText()
@@ -146,28 +151,28 @@ class Search(Resource):
                 obj['png'] = png_base64
         return chunk
 
-    def get_objects(self, table, query_fp, bit_len=0, filter_conditions=False):
+    def get_objects(self, table, query_fp=None, bit_len=0):
         """
-        Handle similarity searching
-        :param table:string
+        Handle user subqueries
+        :param table: string
         :param query_fp: bitstring
         :param bit_len: integer
-        :param filter_conditions: bool
         :return: List[Dict, Dict, ...]
         """
-        connection = sqlite3.connect('db.sqlite')
-        c = connection.cursor()
-        c.execute(f"SELECT * from {table}")
-        objects = c.fetchall()
+        query_type = session.get('query_type')
+
+        engine_query = db.engine.execute(f"SELECT * from {table}")
+        objects = engine_query.fetchall()
         objects = [(obj[0], pickle.loads(obj[1])) for obj in objects]
         for obj in objects:
             obj[1]['id'] = obj[0]
         objects = [obj[1] for obj in objects]
 
-        if filter_conditions:
-            filtered_objects = list(filter(self.check_condition, objects))
-        else:
-            if query_fp:
+        if self.user_query:
+            # 1. Similarity cases
+            if (query_type == 'chembl' and self.subquery_mols == 'Similarity') or \
+                    (query_type == 'chembl' and self.subquery_mols == 'Full') or \
+                    (query_type == 'reactions' and self.subquery_reactions == 'Reaction'):
                 query_fp = query_fp + '0' * (bit_len - len(query_fp))
                 query_fp = DataStructs.cDataStructs.CreateFromBitString(query_fp)
 
@@ -175,10 +180,58 @@ class Search(Resource):
                 similarities = list(enumerate(DataStructs.BulkTanimotoSimilarity(query_fp, fingerprints)))
                 filtered_similarities = list(filter(self.check_similarity, similarities))
                 filtered_similarities = sorted(filtered_similarities, key=lambda values: values[1], reverse=True)
-                filtered_objects = [objects[indice['id']] for indice in filtered_similarities]
+                filtered_objects = [objects[indice[0]] for indice in filtered_similarities]
+                print('Similarity...')
+                print(self.similarity)
+                print(len(filtered_objects))
+
             else:
-                filtered_objects = objects
+                # 2. Reaction common cases (Search in Reactants, Products or compare to conditions)
+                if query_type == 'reactions':
+                    if self.subquery_reactions == 'Conditions':  # Reactions => Conditions
+                        filtered_objects = list(filter(self.check_condition, objects))
+                    elif self.subquery_reactions == 'Reactants' or self.subquery_reactions == 'Products':
+                        self.user_mol = Chem.MolFromSmiles(self.user_query)
+                        filtered_objects = list(filter(self.check_reactants_products, objects))
+
+                # 3. ChEMBL Substructure
+                elif query_type == 'chembl':
+                    if self.subquery_mols == 'Substructure':
+                        self.user_mol = Chem.MolFromSmiles(self.user_query)
+                        filtered_objects = list(filter(self.check_substructure, objects))
+        else:
+            filtered_objects = objects
+
         return filtered_objects
+
+    def check_reactants_products(self, obj):
+        reaction = rdChemReactions.ReactionFromSmarts(obj['Smiles'])
+        reaction.Initialize()
+        if self.subquery_reactions == 'Reactants':
+            try:
+                return reaction.IsMoleculeReactant(self.user_mol)
+            except ValueError:
+                return False
+        if self.subquery_reactions == 'Products':
+            try:
+                return reaction.IsMoleculeProduct(self.user_mol)
+            except ValueError:
+                return False
+        return False
+
+    def check_substructure(self, obj):
+        """
+        Check conditions of reactions
+        :param obj: Dict
+        :return: Bool
+        """
+        mol = Chem.MolFromSmiles(obj['Smiles'])
+        try:
+            if mol.HasSubstructMatch(self.user_mol):
+                return True
+        except AttributeError:
+            return False
+        return False
 
     def check_condition(self, obj):
         """

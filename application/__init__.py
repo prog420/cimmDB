@@ -1,6 +1,6 @@
-import redis
+import sqlite3
 from datetime import timedelta
-from flask import Flask
+from flask import Flask, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Api
 from flask_login import LoginManager

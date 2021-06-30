@@ -33,11 +33,6 @@
     vertical-align: inherit;
 }
 
-#draggable {
-    width: 640px;
-    height: 500px;
-}
-
 #sim_row {
     display: none;
 }
@@ -52,4 +47,5 @@
 
 #conditions_row {
     display: none;
+    word-break: normal;
 }

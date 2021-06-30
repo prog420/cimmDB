@@ -6,11 +6,12 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Вход</title>
+    <title>CIMM Lab.</title>
     <script type="text/javascript" language="javascript" src="{{ url_for('search_bp.static', filename='jsme/jsme.nocache.js') }}"></script>
     <script type="text/javascript" language="javascript" src="{{ url_for('main_bp.static', filename='js/main.js') }}" defer></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <link rel="icon" type="image/png" sizes="32x32" href="./static/img/favicon.png">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.6.1/css/bulma.min.css">
     <link rel="stylesheet" type="text/css" href="{{ url_for('main_bp.static', filename='style/style.css') }}">
@@ -19,7 +20,7 @@
         //this function will be called after the JavaScriptApplet code has been loaded.
         function jsmeOnLoad() {
 
-            jsmeApplet = new JSApplet.JSME("jsme_container", "600px", "440px", {
+            jsmeApplet = new JSApplet.JSME("jsme_container", "830px", "350px", {
                 "options": "newlook,query,hydrogens",
                 "guicolor": "#bfbfbf",
             });
@@ -27,6 +28,9 @@
             jsmeApplet.setAfterStructureModifiedCallback(showEvent);
 
             document.getElementById("log").value = "";
+            document.getElementById("jsme_container").firstChild.style.width = "53vw";
+            document.getElementById("jsme_container").firstChild.style.height = "50vh";
+            document.getElementById("jsme_container").firstChild.style.padding = "0.5rem";
         }
 
         var patt = /\[([A-Za-z][a-z]?)H?\d*:\d+\]/g; //regexp pattern for numbered atom
@@ -37,14 +41,10 @@
 
         }
 
-        function showValue(value) {
-            document.getElementById("mol_weight_range").innerText = value;
-        }
-
     </script>
 </head>
 
-<body>
+<body onload="changeJSMEWidth()">
     <section class="hero is-primary is-fullheight">
 
         <div class="hero-head">
@@ -54,7 +54,7 @@
                     <div id="navbarMenuHeroA" class="navbar-menu">
                         <div class="navbar-end">
                             <a href="{{ url_for('main_bp.index') }}" class="navbar-item">
-                                Structure Search
+                                Search
                             </a>
                             {% if current_user.is_authenticated %}
                             <a href="{{ url_for('main_bp.profile') }}" class="navbar-item">
