@@ -3,86 +3,50 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+    <div class="columns is-mobile is-centered">
+        <div class="column is-half">
+            <div class="notification is-success is-centered has-text-center" id="new_record_msg">
+                <button class="delete" onclick="document.getElementById('new_record_msg').style.display='none'"></button>
+                <b>{{ messages[0] }}</b>
+            </div>
+        </div>
+    </div>
+{% endif %}
+{% endwith %}
 <div class="columns">
     <div class="column">
         <div class="box">
-            <form class="field is-grouped">
-                <div class="file has-name">
-                    <label class="file-label">
-                      <input class="file-input" type="file" name="resume">
-                      <span class="file-cta">
-                        <span class="file-icon">
-                          <i class="fas fa-upload"></i>
-                        </span>
-                        <span class="file-label">
-                          Choose a file…
-                        </span>
-                      </span>
-                      <span class="file-name">
-                        Pickle, MOL or SDF
-                      </span>
-                    </label>
-                </div>
-                <input type="submit" class="button is-info" value="Send">
-            </form>
 
             <label class="label has-text-left">Draw a structure or enter SMILES:</label>
 
             <div class="field is-grouped">
                 <p class="control is-expanded">
-                  <input class="input" id="log" type="text" placeholder="SMILES">
-                </p>
-                <p class="control">
-                  <a class="button is-info" onclick="onSearch(0)">
-                    Add
-                  </a>
+                    <input class="input" id="log" type="text" name="Smiles" placeholder="SMILES" form="reaction_form">
                 </p>
             </div>
 
-            <div id="jsme_container"></div> <!-- рисовалка -->
+            <div id="jsme_container"></div>
         </div>
     </div>
 
     <div class="column">
         <div class="box">
-            <table id="add_table" class="table is-striped">
-                <tr>
-                    <th>Stages</th><th><input class="input" id="stages" type="text" placeholder="Input stages"></th>
-                </tr>
-                <tr>
-                    <th>Yield</th><th><input class="input" id="yield" type="text" placeholder="Input yield"></th>
-                </tr>
-                <tr>
-                    <th>Citations</th><th><input class="input" id="citations" type="text" placeholder="Input citations"></th>
-                </tr>
-                <tr>
-                    <th>Other conditions</th><th><input class="input" id="conditions" type="text" placeholder="Input other conditions"></th>
-                </tr>
-                <tr>
-                    <th>Temperature</th><th><input class="input" id="temperature" type="text" placeholder="Input temperature"></th>
-                </tr>
-                <tr>
-                    <th>Time</th><th><input class="input" id="time" type="text" placeholder="Input time"></th>
-                </tr>
-                <tr>
-                    <th>Solvents</th><th><input class="input" id="solvents" type="text" placeholder="Input solvents"></th>
-                </tr>
-                <tr>
-                    <th>Solvents id</th><th><input class="input" id="solvents-id" type="text" placeholder="Input solvents id"></th>
-                </tr>
-                <tr>
-                    <th>Catalysts</th><th><input class="input" id="catalysts" type="text" placeholder="Input catalysts"></th>
-                </tr>
-                <tr>
-                    <th>Catalysts id</th><th><input class="input" id="catalysts-id" type="text" placeholder="Input catalysts id"></th>
-                </tr>
-                <tr>
-                    <th>Reaction type</th><th><input class="input" id="reaction-type" type="text" placeholder="Input reaction type"></th>
-                </tr>
-            </table>
-            <div>
-                <button class="button is-success">Submit</button>
-            </div>
+            <p style="font-weight: bold;">Additional Parameters</p>
+            <form method="GET" action="/add" id="reaction_form">
+                <table id="add_table" class="table is-striped">
+                    {% for field in form_fields %}
+                        <tr>
+                            <th>{{ field }}</th>
+                            <th><input class="input" id="{{ field }}" type="text" name="{{ field }}" placeholder="Input {{ field }}"></th>
+                        </tr>
+                    {% endfor %}
+                </table>
+                <div>
+                    <input class="button is-success" type="submit" value="Submit">
+                </div>
+            </form>
         </div>
     </div>
 </div>

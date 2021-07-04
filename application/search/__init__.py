@@ -1,10 +1,7 @@
 import time
 import base64
 import pickle
-import sqlite3
-from os import mkdir
-from math import ceil
-from flask import Blueprint, render_template, request, make_response, session, current_app
+from flask import Blueprint, render_template, request, make_response, session
 from flask_restful import Resource
 from rdkit import Chem
 from rdkit import DataStructs
