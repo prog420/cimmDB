@@ -11,8 +11,8 @@ class Config:
 
     # Redis
     SESSION_TYPE = 'redis'
-    SESSION_REDIS = Redis(host="redis-14238.c12.us-east-1-4.ec2.cloud.redislabs.com", port="14238",
-                          password="YwMwX9Le9m4SH2fQcqJcFQ6IMYbgtLKV")
+    SESSION_REDIS = Redis(host="redis-18039.c278.us-east-1-4.ec2.cloud.redislabs.com", port="18039",
+                          password="D8qYzmrPaNPwudZK1t5Mh3z0SOJqhEpt")
 
     TESTING = True
     DEBUG = True
