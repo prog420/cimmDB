@@ -14,3 +14,5 @@
 <img src="https://i.imgur.com/V1uUzZj.png" width="50%">
 <p>2. Result of Substructure Search (query: с1ссссс1)</p>
 <img src="https://i.imgur.com/428QkD4.png" width="50%">
+
+#### Note: This project is not in production, so dev. credentials such as Redis server password are not secured.
