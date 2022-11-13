@@ -5,3 +5,4 @@ flask-session
 flask-login
 sqlalchemy
 redis
+new
